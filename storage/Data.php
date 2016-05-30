@@ -145,6 +145,7 @@ class Data extends \lithium\core\StaticObject {
 		if (!$type) {
 			$type = 'stages';
 			$data = array('key' => 'overall');
+			self::_totals();
 		}
 
 		// Ensure we have an array of data
@@ -186,5 +187,16 @@ class Data extends \lithium\core\StaticObject {
 		return (!$ok)?:$data;
 	}
 
+	/**
+	 * Calculate the total time for all queries
+	 */
+	static protected function _totals() {
+		$data['time'] = 0;
+		foreach (static::$data['queries'] as $value) {
+			$data['time'] += $value['time'];
+ 		}
+
+ 		static::append('stages', ['total_queries' => $data]);
+	}
 }
 ?>

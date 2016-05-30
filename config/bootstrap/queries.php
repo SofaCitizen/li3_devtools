@@ -11,6 +11,9 @@ use lithium\analysis\Logger;
 use lithium\aop\Filters;
 use lithium\data\Connections;
 
+/*
+ * Add filter to save & log all queries
+ */
 Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next) {
 	Data::start('stages', 'filtering_queries');
 	foreach (Connections::get() as $value) {
@@ -33,5 +36,29 @@ Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next
 	Data::end('stages', 'filtering_queries');
 	return $next($params);
 });
+
+/*
+ * Add filter to log all queries run during tests
+ */
+Filters::apply('lithium\test\Dispatcher', '_callable', function($params, $next) {
+	foreach (Connections::get() as $value) {
+		Filters::apply(Connections::get($value), '_execute', function($params, $next) {
+			// Run the query inside a timer
+			$time = microtime(true);
+			$result = $next($params);
+			$time = microtime(true) - $time;
+
+			// Log the query in the logger so that we can see queries run before a redirect
+			Logger::debug('QUERY: ' . $params['sql'] . ' (' . number_format($time, 2) . 's)');
+
+			// Return result
+			return $result;
+		});
+	};
+
+	Data::end('stages', 'filtering_queries');
+	return $next($params);
+});
+
 
 ?>

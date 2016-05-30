@@ -39,7 +39,7 @@
 				<tr>
 					<td><?=$i+1 ?></td>
 					<td><?=number_format($data['time'], 2) ?>s</td>
-					<td><?=number_format(($data['time'] / $stages['overall']['time']) * 100, 2) ?></td>
+					<td><?=number_format(($data['time'] / $stages['total_queries']['time']) * 100, 2) ?></td>
 					<td><?=$data['sql'] ?></td>
 				</tr>
 				<?php endforeach; ?>
