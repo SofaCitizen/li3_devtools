@@ -6,6 +6,7 @@
 			<thead>
 				<tr>
 					<th>Name</th>
+					<th>Count</th>
 					<th>Time</th>
 					<th>%</th>
 				</tr>
@@ -13,9 +14,10 @@
 			<tbody class="table-striped">
 				<?php foreach($stages as $name => $data): ?>
 				<tr>
-					<td><?=$name ?></td>
+					<td><?=$data['name'] ?></td>
+					<td><?=$data['count'] ?></td>
 					<td><?=number_format($data['time'], 2) ?>s</td>
-					<td><?=number_format(($data['time'] / $stages['overall']['time']) * 100, 2) ?></td>
+					<td><?=number_format($data['percentage'], 1) ?></td>
 				</tr>
 				<?php endforeach; ?>
 			</tbody>
@@ -39,7 +41,7 @@
 				<tr>
 					<td><?=$i+1 ?></td>
 					<td><?=number_format($data['time'], 2) ?>s</td>
-					<td><?=number_format(($data['time'] / $stages['total_queries']['time']) * 100, 2) ?></td>
+					<td><?=number_format($data['percentage'], 1) ?></td>
 					<td><?=$data['sql'] ?></td>
 				</tr>
 				<?php endforeach; ?>
@@ -48,5 +50,3 @@
 	</div>
 	<?php endif; ?>
 </div>
-
-

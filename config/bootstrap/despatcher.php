@@ -53,11 +53,10 @@ Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next
 				$view = Media::view('default', []);
 
 				// This is the last minute to stop any timers
-				Data::end('stages', 'content');
 				Data::end();
 
 				// Set data to be passed
-				$stages = Data::get('stages');
+				$stages  = Data::sorted('stages');
 				$queries = Data::get('queries');
 
 				// Grab the rendered output from the element

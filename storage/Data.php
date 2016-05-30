@@ -49,6 +49,7 @@ class Data extends \lithium\core\StaticObject {
 	 * @return boolean Returns `true` if the data was saved.
 	 */
 	static public function save() {
+		static::end();
 		$path = Libraries::get(true, 'resources') . '/tmp/devtools-tmp.json';
 		$encoded = json_encode(static::$data);
 		return file_put_contents($path, $encoded);
@@ -88,10 +89,28 @@ class Data extends \lithium\core\StaticObject {
 	 * Gets data.
 	 *
 	 * @param string $type The data type to use
-	 * @return mixed The value stored at the specified key, or false if not set.
+	 * @return mixed The value stored at the specified type, or false if not set.
 	 */
 	static public function get($type = null) {
 		return (isset(static::$data[$type])) ? static::$data[$type]:false;
+	}
+
+	/**
+	 * Gets sorted data.
+	 *
+	 * @param string $type The data type to use
+	 * @return mixed The value stored at the specified type, or false if not set.
+	 */
+	static public function sorted($type = null) {
+		$data = (isset(static::$data[$type])) ? array_values(static::$data[$type]):false;
+
+		if ($data) {
+			usort($data, function($a, $b) {
+			    return ($a['time'] > $b['time']) ? -1 : 1;
+			});
+		}
+
+		return $data;
 	}
 
 	/**
@@ -105,98 +124,111 @@ class Data extends \lithium\core\StaticObject {
 		if (!$type) {
 			static::load();
 			$type = 'stages';
-			$data = array('key' => 'overall');
+			$data = array('name' => 'overall');
 		}
 
 		// Ensure we have an array of data
 		if (!is_array($data)) {
-			$data = array('key' => $data);
+			$data = array('name' => $data);
 		}
 
 		// Merge passed data with defaults
-		$defaults = ['start' => microtime(true), 'key' => null];
+		$defaults = ['start' => microtime(true), 'name' => 0];
 		$data += $defaults;
 
-		// Strip the key from the data
-		$key = $data['key'];
-		unset($data['key']);
-
-		// Save data to the array
-		if (!$key) {
-			// We do not have a key so save it to the pending array
-			static::$data['_pending'][$type] = $data;
-		} else {
-			// We do have a key so merge with any existing data and save it
-			if (isset(static::$data[$type][$key])) {
-				$data += static::$data[$type][$key];
-			}
-			static::$data[$type][$key] = $data;
+		// We do have a key so merge with any existing data and save it to the pending array
+		if (isset(static::$data['_pending'][$type][$data['name']])) {
+			$data += static::$data['_pending'][$type][$data['name']];
 		}
+		static::$data['_pending'][$type][$data['name']] = $data;
 	}
 
 	/**
 	 * Completes a timed entry and moves it from pending to the correct array
 	 *
 	 * @param string $type The data type to use
-	 * @return mixed Returns the data that was added or false on failure.
+	 * @return mixed Returns the data that was added, true if we closed all timers or false on failure.
 	 */
 	static public function end($type = null, $data = array()) {
-		// Passing no parameters assumes we are ending the overall timer
+		// Passing no parameters assumes we are ending all pending timers
 		if (!$type) {
-			$type = 'stages';
-			$data = array('key' => 'overall');
+			// Loop through and end all timers
+			foreach (static::$data['_pending'] as $type => $value) {
+				if (!empty($value)) {
+					foreach ($value as $k => $v) {
+						static::end($type, $v);
+					}
+				}
+				unset(static::$data['_pending'][$type]);
+			}
+
+			// Calculate totals & sort
 			self::_totals();
+
+			return true;
 		}
 
 		// Ensure we have an array of data
 		if (!is_array($data)) {
-			$data = array('key' => $data);
+			$data = array('name' => $data);
 		}
 
 		// Merge passed data with defaults
-		$defaults = ['end' => microtime(true), 'key' => null];
+		$defaults = ['end' => microtime(true), 'name' => 0, 'count' => 1];
 		$data += $defaults;
 
-		// Strip the key from the data
-		$key = $data['key'];
-		unset($data['key']);
-
-		// Update data in the array
-		if (!$key) {
-			if (!isset(static::$data['_pending'][$type])) {
-				return false;
-			}
-
-			// Merge data and remove it from pending
-			$data += static::$data['_pending'][$type];
-			unset(static::$data['_pending'][$type]);
-		} else {
-			// We do have a key so merge with any existing data and save it
-			if (isset(static::$data[$type][$key])) {
-				$data += static::$data[$type][$key];
-			}
+		// We should have existing data so merge it in and remove it
+		if (isset(static::$data['_pending'][$type][$data['name']])) {
+			$data += static::$data['_pending'][$type][$data['name']];
+			unset(static::$data['_pending'][$type][$data['name']]);
 		}
 
-		// Set the final time - including adding to any existing time
-		$data['time'] = (isset($data['time'])? $data['time']:0) + $data['end'] - $data['start'];
+		// Set the final time
+		$data['time'] = $data['end'] - $data['start'];
 
-		// Append data in a suitably manner
-		$ok = ($key)? static::append($type, [$key => $data]) : static::append($type, [$data]);
+		// If we have a key then we may have prior data to merge/add in
+		if ($data['name'] && isset(static::$data[$type][$data['name']])) {
+			$data['time']  += static::$data[$type][$data['name']]['time'];
+			$data['count'] += static::$data[$type][$data['name']]['count'];
+			$data += static::$data[$type][$data['name']];
+		}
+
+		// Append data in a suitable manner
+		$ok = ($data['name'])? static::append($type, [$data['name'] => $data]) : static::append($type, [$data]);
 
 		// Return data if we added it successfully
 		return (!$ok)?:$data;
 	}
 
 	/**
-	 * Calculate the total time for all queries
+	 * Calculate all totals and percentages
 	 */
 	static protected function _totals() {
-		$data['time'] = 0;
+		$total = [
+			'name'  => 'total_queries',
+			'time'  => 0,
+			'count' => 0,
+		];
+
+		// Loop queries and calculate count & time
 		foreach (static::$data['queries'] as $value) {
-			$data['time'] += $value['time'];
+			$total['count']++;
+			$total['time'] += $value['time'];
  		}
 
- 		static::append('stages', ['total_queries' => $data]);
+ 		// Save
+ 		static::append('stages', [$total['name'] => $total]);
+
+ 		// Now use new total to set percentages on each query
+		foreach (static::$data['queries'] as &$item) {
+			$item['percentage'] = ($item['time'] / $total['time']) * 100;
+ 		}
+
+ 		// Do the same for stages
+ 		$total = static::$data['stages']['overall'];
+		foreach (static::$data['stages'] as &$item) {
+			$item['percentage'] = ($item['time'] / $total['time']) * 100;
+ 		}
 	}
 }
 ?>
