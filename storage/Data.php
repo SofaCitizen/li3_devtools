@@ -8,6 +8,8 @@
 
 namespace li3_devtools\storage;
 
+use lithium\core\Libraries;
+
 /**
  * A very simple static class to help pass around data between the various
  * filters that are running so that the output can display all the data that
@@ -20,6 +22,37 @@ class Data extends \lithium\core\StaticObject {
 		'queries'   => array(),
 		'_pending'  => array(),
 	);
+
+	/**
+	 * Loads data from the temporary file and removes it
+	 */
+	static public function load() {
+		$path = Libraries::get(true, 'resources') . '/tmp/devtools-tmp.json';
+
+		if (file_exists($path) && ($string = file_get_contents($path))) {
+			if ($decoded = json_decode($string, true)) {
+				// We have valid data so merge for each of our known types
+				foreach (array_keys(static::$data) as $type) {
+					if (isset($decoded[$type])) {
+						static::$data[$type] += $decoded[$type];
+					}
+				}
+			}
+			unlink($path);
+		}
+	}
+
+	/**
+	 * Saves data in a temporary file
+	 * This is designed to allow logging to persist between redirects
+	 *
+	 * @return boolean Returns `true` if the data was saved.
+	 */
+	static public function save() {
+		$path = Libraries::get(true, 'resources') . '/tmp/devtools-tmp.json';
+		$encoded = json_encode(static::$data);
+		return file_put_contents($path, $encoded);
+	}
 
 	/**
 	 * Sets data.
@@ -67,19 +100,38 @@ class Data extends \lithium\core\StaticObject {
 	 * @param string $type The data type to use
 	 */
 	static public function start($type = null, $data = array()) {
-		// Ensure we have an array of data and merge with defaults
+		// Passing no parameters assumes we are ending the overall timer
+		// This will also run the load method to attempt to read in data from a previous execution if it was interrupted
+		if (!$type) {
+			static::load();
+			$type = 'stages';
+			$data = array('key' => 'overall');
+		}
+
+		// Ensure we have an array of data
 		if (!is_array($data)) {
 			$data = array('key' => $data);
 		}
-		$defaults = ['start' => microtime(true), 'type' => $type, 'key' => 'current'];
+
+		// Merge passed data with defaults
+		$defaults = ['start' => microtime(true), 'key' => null];
 		$data += $defaults;
 
-		// Strip type and key and use them to insert into the pending array
-		$type = $data['type'];
+		// Strip the key from the data
 		$key = $data['key'];
-		unset($data['type'], $data['key']);
+		unset($data['key']);
 
-		static::$data['_pending'][$type][$key] = $data;
+		// Save data to the array
+		if (!$key) {
+			// We do not have a key so save it to the pending array
+			static::$data['_pending'][$type] = $data;
+		} else {
+			// We do have a key so merge with any existing data and save it
+			if (isset(static::$data[$type][$key])) {
+				$data += static::$data[$type][$key];
+			}
+			static::$data[$type][$key] = $data;
+		}
 	}
 
 	/**
@@ -89,34 +141,46 @@ class Data extends \lithium\core\StaticObject {
 	 * @return mixed Returns the data that was added or false on failure.
 	 */
 	static public function end($type = null, $data = array()) {
-		// Ensure we have an array of data and merge with defaults
+		// Passing no parameters assumes we are ending the overall timer
+		if (!$type) {
+			$type = 'stages';
+			$data = array('key' => 'overall');
+		}
+
+		// Ensure we have an array of data
 		if (!is_array($data)) {
 			$data = array('key' => $data);
 		}
-		$defaults = ['end' => microtime(true), 'type' => $type, 'key' => 'current'];
+
+		// Merge passed data with defaults
+		$defaults = ['end' => microtime(true), 'key' => null];
 		$data += $defaults;
 
-		// Strip type and key from data
-		$type = $data['type'];
+		// Strip the key from the data
 		$key = $data['key'];
-		unset($data['type'], $data['key']);
+		unset($data['key']);
 
+		// Update data in the array
+		if (!$key) {
+			if (!isset(static::$data['_pending'][$type])) {
+				return false;
+			}
 
-		// Read data in from the pending array (if we can) and remove it
-		if (!isset(static::$data['_pending'][$type][$key])) {
-			return false;
-		}
-		$data += static::$data['_pending'][$type][$key];
-		unset(static::$data['_pending'][$type][$key]);
-
-		// Calculate the time difference
-		$data['time'] = $data['end'] - $data['start'];
-
-		if ($key == 'current') {
-			$ok = static::append($type, [$data]);
+			// Merge data and remove it from pending
+			$data += static::$data['_pending'][$type];
+			unset(static::$data['_pending'][$type]);
 		} else {
-			$ok = static::append($type, [$key => $data]);
+			// We do have a key so merge with any existing data and save it
+			if (isset(static::$data[$type][$key])) {
+				$data += static::$data[$type][$key];
+			}
 		}
+
+		// Set the final time - including adding to any existing time
+		$data['time'] = (isset($data['time'])? $data['time']:0) + $data['end'] - $data['start'];
+
+		// Append data in a suitably manner
+		$ok = ($key)? static::append($type, [$key => $data]) : static::append($type, [$data]);
 
 		// Return data if we added it successfully
 		return (!$ok)?:$data;

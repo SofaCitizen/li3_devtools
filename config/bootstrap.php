@@ -8,9 +8,10 @@
 
 use li3_devtools\storage\Data;
 
+
 // Start the timers
 // Note: this is only acurate if li3_perf was started before all other libraries (and after lithium).
-Data::start('stages', 'overall');
+Data::start();
 
 /**
  * This file hooks into the despatcher to grab timings and stuff

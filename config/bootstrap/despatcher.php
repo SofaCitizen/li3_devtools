@@ -10,25 +10,41 @@ use li3_devtools\storage\Data;
 use lithium\aop\Filters;
 use lithium\net\http\Media;
 
+/*
+ *	Start routing stage
+ */
 Filters::apply('lithium\action\Dispatcher', 'run', function($params, $next) {
 	Data::start('stages', 'routing');
 
 	return $next($params);
 });
 
+/*
+ *	Set remaining stages
+ */
 Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next) {
 	Data::start('stages', 'filtering_despatch');
 
-	// At this point, the routing has completed. In order to call _callable, it's routed.
-	// So this is ever so slightly off actually.
 	Data::end('stages', 'routing');
-
 	Data::start('stages', 'callable');
 	$controller = $next($params);
 	Data::end('stages', 'callable');
 
 	if (is_a($controller, '\lithium\action\Controller')) {
 		Data::start('stages', 'content');
+	}
+
+	Data::end('stages', 'filtering_despatch');
+	return $controller;
+});
+
+/*
+ *	Inject a filter to end final timers and output the info via the named element
+ */
+Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next) {
+	$controller = $next($params);
+
+	if (is_a($controller, '\lithium\action\Controller')) {
 		Filters::apply($controller, '__invoke', function($params, $next) use ($controller) {
 			$response = $next($params);
 
@@ -38,14 +54,18 @@ Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next
 
 				// This is the last minute to stop any timers
 				Data::end('stages', 'content');
-				Data::end('stages', 'overall');
+				Data::end();
 
 				// Set data to be passed
 				$stages = Data::get('stages');
 				$queries = Data::get('queries');
 
 				// Grab the rendered output from the element
-				$output = $view->render(array('element' => 'devtools/output'), compact('stages', 'queries'), ['library' => 'li3_devtools']);
+				$output = $view->render(
+					array('element' => 'devtools/output'),
+					compact('stages', 'queries'),
+					['library' => 'li3_devtools']
+				);
 
 				// Insert the rendered content at the very end of the page
 				$response->body = str_replace('</body>', $output . '</body>', $response->body);
@@ -55,7 +75,21 @@ Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next
 		});
 	}
 
-	Data::end('stages', 'filtering_despatch');
+	return $controller;
+});
+
+/*
+ *	Add filter to save our data on redirect to allow a redirecting call to return all relevant data
+ */
+Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next) {
+	$controller = $next($params);
+	if (is_a($controller, '\lithium\action\Controller')) {
+		Filters::apply($controller, 'redirect', function($params, $next) {
+			Data::save();
+			return $next($params);
+		});
+	}
+
 	return $controller;
 });
 
