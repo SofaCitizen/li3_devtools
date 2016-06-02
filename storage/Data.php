@@ -18,7 +18,7 @@ use lithium\core\Libraries;
 */
 class Data extends \lithium\core\StaticObject {
 	static $data = array(
-		'stages'    => array(),
+		'timers'    => array(),
 		'queries'   => array(),
 		'_pending'  => array(),
 	);
@@ -123,7 +123,7 @@ class Data extends \lithium\core\StaticObject {
 		// This will also run the load method to attempt to read in data from a previous execution if it was interrupted
 		if (!$type) {
 			static::load();
-			$type = 'stages';
+			$type = 'timers';
 			$data = array('name' => 'overall');
 		}
 
@@ -217,16 +217,16 @@ class Data extends \lithium\core\StaticObject {
  		}
 
  		// Save
- 		static::append('stages', [$total['name'] => $total]);
+ 		static::append('timers', [$total['name'] => $total]);
 
  		// Now use new total to set percentages on each query
 		foreach (static::$data['queries'] as &$item) {
 			$item['percentage'] = ($item['time'] / $total['time']) * 100;
  		}
 
- 		// Do the same for stages
- 		$total = static::$data['stages']['overall'];
-		foreach (static::$data['stages'] as &$item) {
+ 		// Do the same for timers
+ 		$total = static::$data['timers']['overall'];
+		foreach (static::$data['timers'] as &$item) {
 			$item['percentage'] = ($item['time'] / $total['time']) * 100;
  		}
 	}

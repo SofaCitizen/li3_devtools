@@ -15,7 +15,7 @@ use lithium\data\Connections;
  * Add filter to save & log all queries
  */
 Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next) {
-	Data::start('stages', 'filtering_queries');
+	Data::start('timers', 'filtering_queries');
 	foreach (Connections::get() as $value) {
 		Filters::apply(Connections::get($value), '_execute', function($params, $next) {
 			// Run the query inside a timer
@@ -33,7 +33,7 @@ Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next
 		});
 	};
 
-	Data::end('stages', 'filtering_queries');
+	Data::end('timers', 'filtering_queries');
 	return $next($params);
 });
 
@@ -56,7 +56,7 @@ Filters::apply('lithium\test\Dispatcher', '_callable', function($params, $next) 
 		});
 	};
 
-	Data::end('stages', 'filtering_queries');
+	Data::end('timers', 'filtering_queries');
 	return $next($params);
 });
 

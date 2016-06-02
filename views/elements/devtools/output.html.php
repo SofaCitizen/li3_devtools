@@ -1,5 +1,5 @@
 <div class="debug debug-info">
-	<?php if (!empty($stages)): ?>
+	<?php if (!empty($timers)): ?>
 	<div class="debug-section">
 		<h2>Time to Load</h2>
 		<table class='table'>
@@ -12,7 +12,7 @@
 				</tr>
 			</thead>
 			<tbody class="table-striped">
-				<?php foreach($stages as $name => $data): ?>
+				<?php foreach($timers as $name => $data): ?>
 				<tr>
 					<td><?=$data['name'] ?></td>
 					<td><?=$data['count'] ?></td>

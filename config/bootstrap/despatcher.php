@@ -14,27 +14,27 @@ use lithium\net\http\Media;
  *	Start routing stage
  */
 Filters::apply('lithium\action\Dispatcher', 'run', function($params, $next) {
-	Data::start('stages', 'routing');
+	Data::start('timers', 'routing');
 
 	return $next($params);
 });
 
 /*
- *	Set remaining stages
+ *	Set remaining timers
  */
 Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next) {
-	Data::start('stages', 'filtering_despatch');
+	Data::start('timers', 'filtering_despatch');
 
-	Data::end('stages', 'routing');
-	Data::start('stages', 'callable');
+	Data::end('timers', 'routing');
+	Data::start('timers', 'callable');
 	$controller = $next($params);
-	Data::end('stages', 'callable');
+	Data::end('timers', 'callable');
 
 	if (is_a($controller, '\lithium\action\Controller')) {
-		Data::start('stages', 'content');
+		Data::start('timers', 'content');
 	}
 
-	Data::end('stages', 'filtering_despatch');
+	Data::end('timers', 'filtering_despatch');
 	return $controller;
 });
 
@@ -56,13 +56,13 @@ Filters::apply('lithium\action\Dispatcher', '_callable', function($params, $next
 				Data::end();
 
 				// Set data to be passed
-				$stages  = Data::sorted('stages');
+				$timers  = Data::sorted('timers');
 				$queries = Data::get('queries');
 
 				// Grab the rendered output from the element
 				$output = $view->render(
 					array('element' => 'devtools/output'),
-					compact('stages', 'queries'),
+					compact('timers', 'queries'),
 					['library' => 'li3_devtools']
 				);
 
