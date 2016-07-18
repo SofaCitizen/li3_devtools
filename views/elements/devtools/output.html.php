@@ -11,13 +11,13 @@
 					<th>%</th>
 				</tr>
 			</thead>
-			<tbody class="table-striped">
+			<tbody>
 				<?php foreach($timers as $name => $data): ?>
 				<tr>
-					<td><?=$data['name'] ?></td>
-					<td><?=$data['count'] ?></td>
-					<td><?=number_format($data['time'], 2) ?>s</td>
-					<td><?=number_format($data['percentage'], 1) ?></td>
+					<td class="text"><?=$data['name'] ?></td>
+					<td class="number"><?=$data['count'] ?></td>
+					<td class="number"><?=number_format($data['time'], 2) ?>s</td>
+					<td class="number"><?=number_format($data['percentage'], 1) ?></td>
 				</tr>
 				<?php endforeach; ?>
 			</tbody>
@@ -36,13 +36,13 @@
 					<th>SQL</th>
 				</tr>
 			</thead>
-			<tbody class="table-striped">
+			<tbody>
 				<?php foreach($queries as $i => $data): ?>
 				<tr>
-					<td><?=$i+1 ?></td>
-					<td><?=number_format($data['time'], 2) ?>s</td>
-					<td><?=number_format($data['percentage'], 1) ?></td>
-					<td><?=$data['sql'] ?></td>
+					<td class="number"><?=$i+1 ?></td>
+					<td class="number"><?=number_format($data['time'], 2) ?>s</td>
+					<td class="number"><?=number_format($data['percentage'], 1) ?></td>
+					<td class="code"><?=$data['sql'] ?></td>
 				</tr>
 				<?php endforeach; ?>
 			</tbody>
